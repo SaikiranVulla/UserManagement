@@ -8,7 +8,7 @@ export const getUser = createAsyncThunk('fetchUser', async page => {
     );
     return response.data;
   } catch (err) {
-    console.log(err);
+    return err;
   }
 });
 
@@ -19,7 +19,11 @@ const userSlice = createSlice({
     loading: false,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    clearUsers: state => {
+      state.user = [];
+    },
+  },
   extraReducers(builder) {
     builder
       .addCase(getUser.pending, state => {
@@ -37,4 +41,5 @@ const userSlice = createSlice({
   },
 });
 
+export const {clearUsers} = userSlice.actions;
 export default userSlice.reducer;

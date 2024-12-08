@@ -6,7 +6,7 @@ export const getUser = createAsyncThunk('fetchUser', async page => {
     const response = await axios.get(
       `https://randomuser.me/api/?results=10&page=${page}`,
     );
-    console.log(response.data);
+    return response.data;
   } catch (err) {
     console.log(err);
   }
@@ -14,12 +14,26 @@ export const getUser = createAsyncThunk('fetchUser', async page => {
 
 const userSlice = createSlice({
   name: 'user',
-  initialState: [],
+  initialState: {
+    user: [],
+    loading: false,
+    error: null,
+  },
   reducers: {},
   extraReducers(builder) {
-    builder.addCase(getUser.fulfilled, (state, action) => {
-      return [...state, ...action.payload.results];
-    });
+    builder
+      .addCase(getUser.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getUser.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = [...state.user, ...action.payload.results];
+      })
+      .addCase(getUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
   },
 });
 

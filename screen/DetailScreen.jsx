@@ -3,7 +3,6 @@ import React from 'react';
 
 const DetailScreen = ({route}) => {
   const {detail} = route.params;
-  console.log(detail);
   return (
     <SafeAreaView style={{flex: 1}}>
       <View

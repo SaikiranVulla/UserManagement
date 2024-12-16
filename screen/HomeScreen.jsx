@@ -12,7 +12,7 @@ import {
   Keyboard,
   Button,
 } from 'react-native';
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {useSelector, useDispatch} from 'react-redux';
 import {getUser, clearUsers} from '../redux/userSlice';
 import {useNavigation} from '@react-navigation/native';
@@ -33,26 +33,37 @@ const HomeScreen = () => {
     dispatch(getUser(pageNumber));
   }, []);
 
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsOffline(!state.isConnected);
-    });
+  // useEffect(() => {
+  //   console.log('Loading offline users...');
+  //   const unsubscribe = NetInfo.addEventListener(state => {
+  //     setIsOffline(!state.isConnected);
+  //   });
 
-    if (isOffline) {
-      loadCachedUsers();
-    } else {
-      cacheUsers(user);
-    }
+  //   if (isOffline) {
+  //     loadCachedUsers();
+  //   }
 
-    return () => unsubscribe();
-  }, [user, isOffline]);
+  //   return () => unsubscribe();
+  // }, [user, isOffline]);
 
-  const handleSearch = () => {
-    if (filteredValue) {
+  const debounce = (func, delay) => {
+    let timeoutId;
+    return (...args) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        func(...args);
+      }, delay);
+    };
+  };
+
+  const handleSearch = query => {
+    if (query) {
       let filterUser = user.filter(user =>
         user.location.country
           .toLowerCase()
-          .includes(filteredValue.toLowerCase().trim()),
+          .includes(query.toLowerCase().trim()),
       );
       setFilteredUsers(filterUser);
     } else {
@@ -60,17 +71,9 @@ const HomeScreen = () => {
     }
   };
 
-  const cacheUsers = async data => {
-    try {
-      await AsyncStorage.setItem('cachedUsers', JSON.stringify(data));
-    } catch (error) {
-      console.error('Failed to cache users:', error);
-    }
-  };
-
   const loadCachedUsers = async () => {
     try {
-      const cachedData = await AsyncStorage.getItem('cachedUsers');
+      const cachedData = await AsyncStorage.getItem('USERDATA');
       if (cachedData) {
         setFilteredUsers(JSON.parse(cachedData));
       } else {
@@ -148,6 +151,15 @@ const HomeScreen = () => {
     setRefreshing(false);
   };
 
+  const checkRequest = NetInfo.addEventListener(state => {
+    // console.log('Checking ...', state);
+    // console.log('Checking ...>>', state.isConnected);
+  });
+
+  checkRequest();
+
+  const debouncedSearch = useCallback(debounce(handleSearch, 1000), [user]);
+
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
       <SafeAreaView style={styles.mainContainer}>
@@ -159,18 +171,17 @@ const HomeScreen = () => {
                 borderWidth: 1,
                 borderColor: 'black',
                 borderRadius: 5,
-                width: '80%',
+                width: '100%',
                 marginRight: 5,
               }}
               placeholder="Filter by country"
               placeholderTextColor={'gray'}
               value={filteredValue}
               onChangeText={value => {
-                setFilteredUsers([]);
                 setFilteredValue(value);
+                debouncedSearch(value);
               }}
             />
-            <Button title="Search" onPress={() => handleSearch()} />
           </View>
           {!filteredValue && !isOffline ? (
             <FlatList

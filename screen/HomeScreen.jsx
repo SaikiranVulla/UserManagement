@@ -8,9 +8,6 @@ import {
   Image,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
-  Keyboard,
-  Button,
 } from 'react-native';
 import React, {useCallback, useEffect, useState} from 'react';
 import {useSelector, useDispatch} from 'react-redux';
@@ -18,11 +15,12 @@ import {getUser, clearUsers} from '../redux/userSlice';
 import {useNavigation} from '@react-navigation/native';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {STORAGE_KEY} from '../redux/userSlice';
 
 const HomeScreen = () => {
   const dispatch = useDispatch();
   const navigation = useNavigation();
-  const {user, loading} = useSelector(state => state.user);
+  const {user, loading, error} = useSelector(state => state.user);
   const [pageNumber, setPageNumber] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -60,10 +58,14 @@ const HomeScreen = () => {
 
   const handleSearch = query => {
     if (query) {
-      let filterUser = user.filter(user =>
-        user.location.country
-          .toLowerCase()
-          .includes(query.toLowerCase().trim()),
+      let filterUser = user.filter(
+        user =>
+          user.location.country
+            .toLowerCase()
+            .includes(query.toLowerCase().trim()) ||
+          user.name.first.toLowerCase().includes(query.toLowerCase().trim()) ||
+          user.name.last.includes(query.toLowerCase().trim()) ||
+          user.phone.includes(query.trim()),
       );
       setFilteredUsers(filterUser);
     } else {
@@ -73,7 +75,7 @@ const HomeScreen = () => {
 
   const loadCachedUsers = async () => {
     try {
-      const cachedData = await AsyncStorage.getItem('USERDATA');
+      const cachedData = await AsyncStorage.getItem(STORAGE_KEY);
       if (cachedData) {
         setFilteredUsers(JSON.parse(cachedData));
       } else {
@@ -160,55 +162,59 @@ const HomeScreen = () => {
 
   const debouncedSearch = useCallback(debounce(handleSearch, 1000), [user]);
 
+  const BuggyComponent = () => {
+    throw new Error('I crashed!');
+  };
+
+  console.log(error, 'error');
   return (
-    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-      <SafeAreaView style={styles.mainContainer}>
-        <View style={styles.subMainContainer}>
-          <View style={{flexDirection: 'row', marginVertical: 10}}>
-            <TextInput
-              style={{
-                padding: 10,
-                borderWidth: 1,
-                borderColor: 'black',
-                borderRadius: 5,
-                width: '100%',
-                marginRight: 5,
-              }}
-              placeholder="Filter by country"
-              placeholderTextColor={'gray'}
-              value={filteredValue}
-              onChangeText={value => {
-                setFilteredValue(value);
-                debouncedSearch(value);
-              }}
-            />
-          </View>
-          {!filteredValue && !isOffline ? (
-            <FlatList
-              data={user}
-              keyExtractor={item => item.login.uuid}
-              renderItem={renderItem}
-              onEndReachedThreshold={0.1}
-              onEndReached={loadNextItems}
-              ListFooterComponent={renderFoot}
-              onRefresh={handleRefresh}
-              refreshing={refreshing}
-              scrollEventThrottle={16}
-              contentInsetAdjustmentBehavior="automatic"
-            />
-          ) : (
-            <FlatList
-              data={filteredUsers}
-              keyExtractor={item => item.login.uuid}
-              renderItem={renderItem}
-              scrollEventThrottle={16}
-              contentInsetAdjustmentBehavior="automatic"
-              ListFooterComponent={<View style={{paddingBottom: 100}} />}
-            />
-          )}
+    <SafeAreaView style={styles.mainContainer}>
+      <View style={styles.subMainContainer}>
+        <View style={{flexDirection: 'row', marginVertical: 10}}>
+          <TextInput
+            style={{
+              padding: 10,
+              borderWidth: 1,
+              borderColor: 'black',
+              borderRadius: 5,
+              width: '100%',
+              marginRight: 5,
+            }}
+            placeholder="Filter by Name, Phone, Country...."
+            placeholderTextColor={'gray'}
+            value={filteredValue}
+            onChangeText={value => {
+              setFilteredValue(value);
+              debouncedSearch(value);
+            }}
+          />
         </View>
-      </SafeAreaView>
-    </TouchableWithoutFeedback>
+        {!filteredValue && !isOffline ? (
+          <FlatList
+            data={user}
+            keyExtractor={item => item.login.uuid}
+            renderItem={renderItem}
+            onEndReachedThreshold={0.1}
+            onEndReached={loadNextItems}
+            ListFooterComponent={renderFoot}
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
+            scrollEventThrottle={16}
+            contentInsetAdjustmentBehavior="automatic"
+          />
+        ) : (
+          <FlatList
+            data={filteredUsers}
+            keyExtractor={item => item.login.uuid}
+            renderItem={renderItem}
+            scrollEventThrottle={16}
+            contentInsetAdjustmentBehavior="automatic"
+            ListFooterComponent={<View style={{paddingBottom: 100}} />}
+          />
+        )}
+      </View>
+      <BuggyComponent />
+    </SafeAreaView>
   );
 };
 
